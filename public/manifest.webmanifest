@@ -1,0 +1,11 @@
+{
+  "name": "EldenSpeak",
+  "short_name": "EldenSpeak",
+  "description": "Open-world city game for practicing real English conversations with AI characters.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0f1a",
+  "theme_color": "#0b0f1a",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
