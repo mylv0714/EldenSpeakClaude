@@ -12,7 +12,10 @@ const ERROR_TEXT: Partial<Record<SpeechErrorCode, [string, string]>> = {
   unsupported: ['이 브라우저는 음성 인식을 지원하지 않아요. Chrome을 추천해요.', "This browser doesn't support speech recognition. Try Chrome."],
 };
 
-/** Push-to-talk speech recognition (English). `onFinal` gets the recognized sentence (and alternatives). */
+/**
+ * Push-to-talk speech recognition (English). `onFinal` gets the recognized sentence (and alternatives).
+ * `start({ continuous: true })` keeps listening through pauses until `stop()` (hold-to-talk).
+ */
 export function useSpeechInput(onFinal: (text: string, alternatives: string[]) => void) {
   const [listening, setListening] = useState(false);
   const [partial, setPartial] = useState('');
@@ -21,12 +24,13 @@ export function useSpeechInput(onFinal: (text: string, alternatives: string[]) =
     handler.current = onFinal;
   }, [onFinal]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (opts?: { continuous?: boolean }) => {
     stopSpeaking();
     setPartial('');
     setListening(true);
     await platform().speech.start({
       lang: 'en-US',
+      continuous: opts?.continuous,
       onPartial: setPartial,
       onFinal: (text, alternatives) => {
         setPartial('');

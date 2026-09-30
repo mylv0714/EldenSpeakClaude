@@ -1,4 +1,4 @@
-// Message composer: text input, push-to-talk mic, hint button and "say it in English" (type in Korean,
+// Message composer: text input, mic (hold-to-talk by default, so pauses to think never cut you off), hint button and "say it in English" (type in Korean,
 // get the English line to say). A misheard message is fixed after sending, with "say it again" on the message itself.
 import { Languages, Lightbulb, Loader2, Mic, Send, Volume2, X } from 'lucide-react';
 import { type KeyboardEvent, type Ref, useImperativeHandle, useRef, useState } from 'react';
@@ -51,10 +51,27 @@ export function Composer({
     }
   });
 
+  const hold = settings.micMode === 'hold';
+  /** When the held mic was pressed (0 = not held). */
+  const pressedAt = useRef(0);
+  const press = () => {
+    if (ended || pending || speech.listening) return;
+    pressedAt.current = Date.now();
+    void speech.start({ continuous: true });
+  };
+  const release = () => {
+    if (!pressedAt.current) return;
+    const tooShort = Date.now() - pressedAt.current < 400;
+    pressedAt.current = 0;
+    speech.stop();
+    if (tooShort) toast(t('마이크를 누른 채로 말하고, 다 말하면 손을 떼세요', 'Hold the mic while you speak, then let go'), 'info');
+  };
+
   useImperativeHandle(ref, () => ({
     listen: () => {
-      if (speech.supported) void speech.start();
-      else inputRef.current?.focus();
+      // Hold-to-talk can't start by itself: the player presses the mic when ready.
+      if (speech.supported && !hold) void speech.start();
+      else if (!speech.supported) inputRef.current?.focus();
     },
     setText: (text) => {
       setInput(text);
@@ -101,7 +118,8 @@ export function Composer({
           <div className="min-w-0 flex-1">
             <div className="text-[15px] font-semibold leading-snug text-white">{translated.en}</div>
             <div className="text-xs text-white/50">
-              {translated.source} · {speech.supported ? t('🎤 를 눌러 소리 내어 말해 보세요', 'Tap 🎤 and say it out loud') : t('보내기를 눌러 전달하세요', 'Tap send')}
+              {translated.source} ·{' '}
+              {!speech.supported ? t('보내기를 눌러 전달하세요', 'Tap send') : hold ? t('🎤 를 누른 채 소리 내어 말해 보세요', 'Hold 🎤 and say it out loud') : t('🎤 를 눌러 소리 내어 말해 보세요', 'Tap 🎤 and say it out loud')}
             </div>
           </div>
           <button className="shrink-0 text-white/50 hover:text-white" aria-label="close" onClick={() => setTranslated(null)}>
@@ -120,7 +138,15 @@ export function Composer({
           onKeyDown={onKey}
           disabled={ended || speech.listening}
           maxLength={300}
-          placeholder={speech.listening ? t('듣고 있어요… 영어로 말하세요', 'Listening… speak English') : t('영어로 입력하거나 🎤 를 누르세요', 'Type in English or tap 🎤')}
+          placeholder={
+            speech.listening
+              ? hold
+                ? t('듣고 있어요… 다 말하면 손을 떼세요', 'Listening… let go when done')
+                : t('듣고 있어요… 영어로 말하세요', 'Listening… speak English')
+              : hold
+                ? t('영어로 입력하거나 🎤 를 누른 채 말하세요', 'Type in English or hold 🎤')
+                : t('영어로 입력하거나 🎤 를 누르세요', 'Type in English or tap 🎤')
+          }
           className={`min-w-0 flex-1 rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[15px] text-white outline-none placeholder:text-white/35 focus:border-yellow-400/60 ${speech.listening ? 'italic text-sky-100' : ''}`}
           enterKeyHint="send"
           autoComplete="off"
@@ -138,16 +164,42 @@ export function Composer({
             {translating ? <Loader2 size={18} className="animate-spin" /> : <Languages size={19} />}
           </button>
         )}
-        {speech.supported && (
-          <button
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition active:scale-90 ${speech.listening ? 'mic-live bg-red-500' : 'bg-sky-500 hover:bg-sky-400'}`}
-            aria-label={speech.listening ? t('녹음 멈추기', 'Stop') : t('말하기', 'Speak')}
-            disabled={ended || pending}
-            onClick={() => (speech.listening ? speech.stop() : void speech.start())}
-          >
-            <Mic size={22} />
-          </button>
-        )}
+        {speech.supported &&
+          (hold ? (
+            <button
+              className={`flex h-12 w-12 shrink-0 touch-none select-none items-center justify-center rounded-full text-white shadow-lg transition ${speech.listening ? 'mic-live scale-110 bg-red-500' : 'bg-sky-500 hover:bg-sky-400'}`}
+              aria-label={t('누른 채로 말하기', 'Hold to talk')}
+              disabled={ended || pending}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                press();
+              }}
+              onPointerUp={release}
+              onPointerCancel={release}
+              onKeyDown={(e) => {
+                if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+                  e.preventDefault();
+                  press();
+                }
+              }}
+              onKeyUp={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') release();
+              }}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <Mic size={22} />
+            </button>
+          ) : (
+            <button
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition active:scale-90 ${speech.listening ? 'mic-live bg-red-500' : 'bg-sky-500 hover:bg-sky-400'}`}
+              aria-label={speech.listening ? t('녹음 멈추기', 'Stop') : t('말하기', 'Speak')}
+              disabled={ended || pending}
+              onClick={() => (speech.listening ? speech.stop() : void speech.start())}
+            >
+              <Mic size={22} />
+            </button>
+          ))}
         <button className="icon-btn h-11 w-11 shrink-0 bg-yellow-400 text-gray-950 hover:bg-yellow-300" aria-label={t('보내기', 'Send')} onClick={submit} disabled={ended || pending || !input.trim()}>
           <Send size={18} />
         </button>

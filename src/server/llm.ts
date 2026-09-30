@@ -9,6 +9,8 @@ export interface JsonRequest<T> {
   schema: z.ZodType<T>;
   temperature?: number;
   maxTokens?: number;
+  /** Per-attempt timeout; long outputs (the debrief) need more than the default on slower models. */
+  timeoutMs?: number;
 }
 
 export interface LlmClient {
@@ -53,7 +55,8 @@ export function extractJson(text: string): unknown {
 /**
  * Structured-output client for any OpenAI-compatible Chat Completions API.
  * On OpenRouter it asks for the highest-throughput provider (gpt-oss on Groq answers in ~0.5s)
- * and medium reasoning, which proved far more reliable for strict JSON than "low".
+ * and medium reasoning by default, which proved far more reliable for strict JSON than "low" on gpt-oss
+ * (OPENAI_REASONING_EFFORT overrides it).
  */
 export function createLlm(config: ServerConfig): LlmClient {
   const schemaCache = new WeakMap<z.ZodType, Record<string, unknown>>();
@@ -72,7 +75,7 @@ export function createLlm(config: ServerConfig): LlmClient {
         json_schema: { name: req.name, strict: true, schema: jsonSchema },
       },
       ...(config.isOpenRouter
-        ? { reasoning: { effort: 'medium' }, provider: { sort: 'throughput', require_parameters: true } }
+        ? { reasoning: { effort: config.reasoningEffort }, provider: { sort: 'throughput', require_parameters: true } }
         : {}),
     };
 
@@ -86,7 +89,7 @@ export function createLlm(config: ServerConfig): LlmClient {
           'X-Title': 'EldenSpeak',
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(req.timeoutMs ?? TIMEOUT_MS),
       });
     } catch (err) {
       throw new LlmError(`network: ${(err as Error).message}`, true);

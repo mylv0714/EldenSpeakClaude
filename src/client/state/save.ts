@@ -52,6 +52,8 @@ export interface Settings {
   subtitles: 'always' | 'listen';
   showTranslation: boolean;
   autoSendVoice: boolean;
+  /** 'hold': record only while the mic button is held (pauses never cut you off); 'tap': tap to start, stops on silence. */
+  micMode: 'hold' | 'tap';
   /** First-person scene for conversations; false = classic chat layout. */
   sceneView: boolean;
   /** Use the server's neural voices when available. */
@@ -118,6 +120,7 @@ export function defaultSettings(uiLang: NativeLang): Settings {
     subtitles: 'always',
     showTranslation: false,
     autoSendVoice: true,
+    micMode: 'hold',
     sceneView: true,
     neuralVoice: true,
     ambientVoices: true,

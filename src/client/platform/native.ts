@@ -15,61 +15,85 @@ function listen(p: Promise<PluginListenerHandle>): () => void {
 }
 
 function createRecognizer(): SpeechRecognizer {
-  let session: { finish(): void } | null = null;
+  let session: { finish(): void; stopRequested: boolean } | null = null;
 
   return {
     supported: true,
     async start(h) {
       session?.finish();
+      let finished = false;
+      const handles: Promise<PluginListenerHandle>[] = [];
+      // Text from earlier engine runs (continuous mode restarts the engine when it stops on a pause).
+      let carried = '';
+      let heard = '';
+      let latest = '';
+      let matches: string[] = [];
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        handles.forEach((p) => p.then((x) => x.remove()));
+        if (latest.trim()) h.onFinal(latest.trim(), matches.length > 0 && !carried ? matches : [latest.trim()]);
+        else if (!current.stopRequested) h.onError('no-speech');
+        h.onEnd();
+        if (session === current) session = null;
+      };
+      // Registered before the awaits so a stop() during the permission check is not lost.
+      const current = { finish, stopRequested: false };
+      session = current;
+
       const { available } = await SpeechRecognition.available().catch(() => ({ available: false }));
       if (!available) {
         h.onError('unsupported');
+        finished = true;
         h.onEnd();
         return;
       }
       const perm = await SpeechRecognition.requestPermissions().catch(() => null);
       if (perm?.speechRecognition !== 'granted') {
         h.onError('not-allowed');
+        finished = true;
         h.onEnd();
         return;
       }
+      if (current.stopRequested || session !== current) {
+        finish();
+        return;
+      }
 
-      let latest = '';
-      let matches: string[] = [];
-      let finished = false;
-      const handles: Promise<PluginListenerHandle>[] = [];
-      const finish = () => {
-        if (finished) return;
-        finished = true;
-        handles.forEach((p) => p.then((x) => x.remove()));
-        if (latest.trim()) h.onFinal(latest.trim(), matches.length > 0 ? matches : [latest.trim()]);
-        else h.onError('no-speech');
-        h.onEnd();
-        if (session === current) session = null;
+      const run = async () => {
+        heard = '';
+        try {
+          await SpeechRecognition.start({ language: h.lang, partialResults: true, popup: false, maxResults: 3 });
+          // Released during the restart gap: the stop() came before this engine run existed.
+          if (current.stopRequested) void SpeechRecognition.stop().catch(() => {});
+        } catch {
+          h.onError('other');
+          finish();
+        }
       };
-      const current = { finish };
-      session = current;
 
       handles.push(
         SpeechRecognition.addListener('partialResults', (data: { matches?: string[] }) => {
-          latest = data.matches?.[0] ?? latest;
+          heard = data.matches?.[0] ?? heard;
           if (data.matches?.length) matches = data.matches.map((m) => m.trim()).filter(Boolean);
+          latest = `${carried} ${heard}`.trim();
           h.onPartial(latest);
         }),
       );
       handles.push(
         SpeechRecognition.addListener('listeningState', (data: { status: 'started' | 'stopped' }) => {
-          if (data.status === 'stopped') finish();
+          if (data.status !== 'stopped') return;
+          // While the button is held, a pause is thinking time: keep what was said and listen again.
+          if (h.continuous && !current.stopRequested && session === current) {
+            carried = latest;
+            void run();
+          } else finish();
         }),
       );
-      try {
-        await SpeechRecognition.start({ language: h.lang, partialResults: true, popup: false, maxResults: 3 });
-      } catch {
-        h.onError('other');
-        finish();
-      }
+      await run();
     },
     stop() {
+      if (session) session.stopRequested = true;
       void SpeechRecognition.stop().catch(() => {});
     },
   };

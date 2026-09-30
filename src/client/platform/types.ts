@@ -5,6 +5,8 @@ export type SpeechErrorCode = 'not-allowed' | 'no-speech' | 'network' | 'unsuppo
 
 export interface RecognitionHandlers {
   lang: string;
+  /** Keep listening through pauses (the engine is restarted if it gives up) until stop() is called. */
+  continuous?: boolean;
   onPartial(text: string): void;
   /** `alternatives` are other plausible transcripts (best first, `text` included) when the engine offers them. */
   onFinal(text: string, alternatives: string[]): void;

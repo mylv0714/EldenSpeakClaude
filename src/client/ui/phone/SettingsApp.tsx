@@ -85,6 +85,9 @@ export function SettingsApp({ actions }: { actions: PhoneActions }) {
       <Row label={t('1인칭 대화 화면', 'First-person conversations')}>
         <Toggle on={st.sceneView} onChange={(v) => set({ sceneView: v })} />
       </Row>
+      <Row label={t('마이크', 'Microphone')}>
+        <Segmented value={st.micMode} options={[['hold', t('누르는 동안', 'Hold to talk')], ['tap', t('탭하기', 'Tap')]]} onChange={(v) => set({ micMode: v })} />
+      </Row>
       <Row label={t('말하면 바로 전송', 'Send voice instantly')}>
         <Toggle on={st.autoSendVoice} onChange={(v) => set({ autoSendVoice: v })} />
       </Row>

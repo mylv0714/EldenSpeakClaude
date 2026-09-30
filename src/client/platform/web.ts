@@ -53,6 +53,7 @@ function createRecognizer(): SpeechRecognizer {
   const w = window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor };
   const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
   let active: SpeechRecognitionLike | null = null;
+  let session: { stopRequested: boolean } | null = null;
 
   return {
     supported: !!Ctor,
@@ -62,48 +63,68 @@ function createRecognizer(): SpeechRecognizer {
         h.onEnd();
         return;
       }
+      if (session) session.stopRequested = true;
       active?.abort();
-      const rec = new Ctor();
-      active = rec;
-      rec.lang = h.lang;
-      rec.interimResults = true;
-      rec.continuous = false;
-      rec.maxAlternatives = 3;
-      let finalText = '';
-      let latest = '';
-      let alternatives: string[] = [];
-      rec.onresult = (e) => {
-        let interim = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const r = e.results[i];
-          if (r.isFinal) {
-            // Alternatives only make sense for a single final chunk (the usual case for short answers).
-            alternatives = finalText ? [] : Array.from({ length: r.length }, (_, k) => r[k].transcript.trim()).filter(Boolean);
-            finalText += r[0].transcript;
-          } else interim += r[0].transcript;
-        }
-        latest = (finalText + interim).trim();
-        h.onPartial(latest);
-      };
-      rec.onerror = (e) => {
-        const map: Record<string, SpeechErrorCode> = {
-          'not-allowed': 'not-allowed',
-          'service-not-allowed': 'not-allowed',
-          'no-speech': 'no-speech',
-          network: 'network',
-          aborted: 'aborted',
+      const sess = { stopRequested: false };
+      session = sess;
+      // Text from earlier engine runs of this session (continuous mode restarts the engine after pauses).
+      let carried = '';
+
+      const run = () => {
+        const rec = new Ctor();
+        active = rec;
+        rec.lang = h.lang;
+        rec.interimResults = true;
+        rec.continuous = !!h.continuous;
+        rec.maxAlternatives = 3;
+        let finalText = '';
+        let latest = carried;
+        let alternatives: string[] = [];
+        let fatal = false;
+        rec.onresult = (e) => {
+          let interim = '';
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const r = e.results[i];
+            if (r.isFinal) {
+              // Alternatives only make sense for a single final chunk (the usual case for short answers).
+              alternatives = finalText || carried ? [] : Array.from({ length: r.length }, (_, k) => r[k].transcript.trim()).filter(Boolean);
+              finalText += r[0].transcript;
+            } else interim += r[0].transcript;
+          }
+          latest = `${carried} ${finalText + interim}`.trim();
+          h.onPartial(latest);
         };
-        h.onError(map[e.error] ?? 'other');
+        rec.onerror = (e) => {
+          // While the button is held, silence is just thinking time.
+          if (h.continuous && !sess.stopRequested && (e.error === 'no-speech' || e.error === 'aborted')) return;
+          const map: Record<string, SpeechErrorCode> = {
+            'not-allowed': 'not-allowed',
+            'service-not-allowed': 'not-allowed',
+            'no-speech': 'no-speech',
+            network: 'network',
+            aborted: 'aborted',
+          };
+          fatal = true;
+          h.onError(map[e.error] ?? 'other');
+        };
+        rec.onend = () => {
+          if (active === rec) active = null;
+          const text = latest.trim();
+          if (h.continuous && !sess.stopRequested && !fatal && session === sess) {
+            carried = text;
+            run();
+            return;
+          }
+          if (session === sess) session = null;
+          if (text) h.onFinal(text, alternatives.length > 0 ? alternatives : [text]);
+          h.onEnd();
+        };
+        rec.start();
       };
-      rec.onend = () => {
-        if (active === rec) active = null;
-        const text = (finalText || latest).trim();
-        if (text) h.onFinal(text, alternatives.length > 0 ? alternatives : [text]);
-        h.onEnd();
-      };
-      rec.start();
+      run();
     },
     stop() {
+      if (session) session.stopRequested = true;
       active?.stop();
     },
   };

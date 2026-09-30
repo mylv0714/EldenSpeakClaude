@@ -5,6 +5,8 @@ export interface ServerConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** OpenRouter reasoning effort. 'medium' keeps gpt-oss JSON reliable; slower free models may prefer 'low'. */
+  reasoningEffort: 'low' | 'medium' | 'high';
   /** Max AI conversation turns per client per day; 0 = unlimited. */
   dailyLimit: number;
   port: number;
@@ -41,6 +43,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     apiKey: env.OPENAI_API_KEY ?? '',
     baseUrl,
     model: env.OPENAI_MODEL || 'openai/gpt-oss-20b',
+    reasoningEffort: env.OPENAI_REASONING_EFFORT === 'low' || env.OPENAI_REASONING_EFFORT === 'high' ? env.OPENAI_REASONING_EFFORT : 'medium',
     dailyLimit: Math.max(0, Number(env.CHAT_DAILY_LIMIT) || 0),
     port: Number(env.PORT) || 8787,
     corsOrigins: [...DEFAULT_ORIGINS, ...extraOrigins],

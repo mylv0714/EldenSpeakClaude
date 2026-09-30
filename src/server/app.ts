@@ -216,7 +216,7 @@ export function createApp({ config, llm, tts = null, limiter, getIp = () => 'loc
       countsTowardDaily: false,
       run: async (req, scenario, npc, llm) => {
         const prompt = buildDebriefPrompt(req, scenario, npc);
-        return sanitizeDebrief(await llm.json({ name: 'debrief', schema: DebriefReplySchema, temperature: 0.4, maxTokens: 2000, ...prompt }));
+        return sanitizeDebrief(await llm.json({ name: 'debrief', schema: DebriefReplySchema, temperature: 0.4, maxTokens: 2000, timeoutMs: 40_000, ...prompt }));
       },
     }),
   );
