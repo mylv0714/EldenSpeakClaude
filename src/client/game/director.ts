@@ -61,6 +61,8 @@ export interface DirectorHost {
   toast(text: string, tone: 'info' | 'good' | 'bad' | 'cash'): void;
   setJobTarget(target: JobTarget | null): void;
   earn(amount: number, reason: string): void;
+  /** Job pay multiplier from the player's rank ("promotion"). */
+  payRate(): number;
   fine(amount: number, reason: string): void;
   report(offense: Offense): void;
   spawnJobVehicle(kind: JobKind): Vehicle;
@@ -204,6 +206,15 @@ export class Director {
     this.h.onJobEnded(job);
   }
 
+  /** Pays one finished ride or delivery, raised by the rank promotion multiplier. */
+  private payJob(job: Job, base: number, reason: string): void {
+    const rate = this.h.payRate();
+    const pay = Math.round(base * rate);
+    job.earned += pay;
+    job.count++;
+    this.h.earn(pay, rate > 1 ? `${reason} · ${this.h.tr(`승진 ×${rate}`, `promotion ×${rate}`)}` : reason);
+  }
+
   private nextJobLeg(): void {
     const job = this.job!;
     const h = this.h;
@@ -296,11 +307,8 @@ export class Director {
         const ride = h.finishGuide();
         // Following spoken directions without a single wrong turn earns a listening bonus.
         const bonus = ride && ride.wrong === 0 ? 15 : 0;
-        const pay = Math.round(job.fare * (onTime ? 1 : 0.6)) + tip + bonus;
-        job.earned += pay;
-        job.count++;
         job.guide = false;
-        h.earn(pay, onTime ? h.tr(`요금 $${job.fare} + 팁 $${tip}`, `Fare $${job.fare} + tip $${tip}`) : h.tr('늦었어요… 요금 일부만 받았어요', 'Late… partial fare'));
+        this.payJob(job, Math.round(job.fare * (onTime ? 1 : 0.6)) + tip + bonus, onTime ? h.tr(`요금 $${job.fare} + 팁 $${tip}`, `Fare $${job.fare} + tip $${tip}`) : h.tr('늦었어요… 요금 일부만 받았어요', 'Late… partial fare'));
         if (ride) {
           h.toast(
             bonus
@@ -418,10 +426,7 @@ export class Director {
         } else {
           const late = Math.max(0, h.now - job.deadline) > 0;
           const tip = ok && mood >= 75 ? (late ? 3 : 8) : 0;
-          const pay = 12 + tip;
-          job.earned += pay;
-          job.count++;
-          h.earn(pay, tip ? h.tr(`배달비 $12 + 팁 $${tip}`, `Delivery $12 + tip $${tip}`) : h.tr('배달비 $12', 'Delivery $12'));
+          this.payJob(job, 12 + tip, tip ? h.tr(`배달비 $12 + 팁 $${tip}`, `Delivery $12 + tip $${tip}`) : h.tr('배달비 $12', 'Delivery $12'));
         }
         job.dest = null;
         job.phase = 'seek';

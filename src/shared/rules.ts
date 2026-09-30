@@ -33,9 +33,23 @@ export interface RewardInput {
   bonusDone: number;
   hintsUsed: number;
   mood: number;
+  /** Hints plus "say it in English" translations; none at all earns the no-help bonus. */
+  helpUsed?: number;
+  /** The player's XP level (the no-help bonus starts at Newcomer). */
+  playerLevel?: number;
 }
 
-export function computeReward(scenario: Scenario, r: RewardInput): { cash: number; xp: number } {
+export interface Reward {
+  cash: number;
+  xp: number;
+  /** XP was raised by the no-help bonus. */
+  noHelpBonus?: boolean;
+}
+
+/** From Newcomer on, finishing a mission without hints or translations gives +30% XP. */
+export const NO_HELP_BONUS = 1.3;
+
+export function computeReward(scenario: Scenario, r: RewardInput): Reward {
   const { cash: baseCash, xp: baseXp } = scenario.reward;
   if (r.outcome === 'abandoned') return { cash: 0, xp: 0 };
   if (r.outcome === 'failure') return { cash: 0, xp: Math.round(baseXp * 0.3) };
@@ -44,7 +58,8 @@ export function computeReward(scenario: Scenario, r: RewardInput): { cash: numbe
   const tip = r.mood >= MOOD_TIP_THRESHOLD ? Math.round(baseCash * 0.15) : 0;
   const cash = Math.round(baseCash * (0.6 + 0.4 * quality) * hintFactor) + r.bonusDone * Math.round(baseCash * 0.25) + tip;
   const xp = Math.round(baseXp * (0.7 + 0.3 * quality)) + r.bonusDone * 20;
-  return { cash, xp };
+  const noHelpBonus = (r.playerLevel ?? 1) >= RANK_LEVEL.newcomer && (r.helpUsed ?? r.hintsUsed) === 0;
+  return noHelpBonus ? { cash, xp: Math.round(xp * NO_HELP_BONUS), noHelpBonus } : { cash, xp };
 }
 
 /** XP needed to go from `level` to `level + 1`. */
@@ -60,19 +75,51 @@ export function levelFromXp(xp: number): { level: number; into: number; needed: 
   return { level, into: rest, needed: xpForNextLevel(level) };
 }
 
-const RANKS: readonly { min: number; title: Localized }[] = [
-  { min: 1, title: { en: 'Tourist', ko: '관광객' } },
-  { min: 3, title: { en: 'Newcomer', ko: '새내기' } },
-  { min: 6, title: { en: 'Local', ko: '현지인' } },
-  { min: 10, title: { en: 'Insider', ko: '도시통' } },
-  { min: 15, title: { en: 'Citizen', ko: '시민' } },
-  { min: 22, title: { en: 'Legend', ko: '전설' } },
+/** Level at which each rank starts. */
+export const RANK_LEVEL = { tourist: 1, newcomer: 3, local: 6, insider: 10, citizen: 15, legend: 22 } as const;
+export type RankId = keyof typeof RANK_LEVEL;
+
+export const RANKS: readonly { id: RankId; min: number; title: Localized }[] = [
+  { id: 'tourist', min: RANK_LEVEL.tourist, title: { en: 'Tourist', ko: '관광객' } },
+  { id: 'newcomer', min: RANK_LEVEL.newcomer, title: { en: 'Newcomer', ko: '새내기' } },
+  { id: 'local', min: RANK_LEVEL.local, title: { en: 'Local', ko: '현지인' } },
+  { id: 'insider', min: RANK_LEVEL.insider, title: { en: 'Insider', ko: '도시통' } },
+  { id: 'citizen', min: RANK_LEVEL.citizen, title: { en: 'Citizen', ko: '시민' } },
+  { id: 'legend', min: RANK_LEVEL.legend, title: { en: 'Legend', ko: '전설' } },
 ];
 
-export function rankFor(level: number): Localized {
-  let rank = RANKS[0].title;
-  for (const r of RANKS) if (level >= r.min) rank = r.title;
+export function rankOf(level: number): (typeof RANKS)[number] {
+  let rank = RANKS[0];
+  for (const r of RANKS) if (level >= r.min) rank = r;
   return rank;
+}
+
+export function rankFor(level: number): Localized {
+  return rankOf(level).title;
+}
+
+/**
+ * Level needed to take on a mission: harder place missions and phone calls open up with rank
+ * (normal at Newcomer, demanding at Local). Story, romance, jobs and street events are never locked.
+ */
+export function unlockLevelFor(scenario: Scenario): number {
+  const lockable = scenario.kind === 'place' || (scenario.kind === 'call' && !scenario.incoming);
+  if (!lockable) return 1;
+  return scenario.difficulty === 3 ? RANK_LEVEL.local : scenario.difficulty === 2 ? RANK_LEVEL.newcomer : 1;
+}
+
+/** Locked until the player's level reaches it, unless they already passed it (older saves keep their missions). */
+export function isScenarioLocked(scenario: Scenario, level: number, bestStars: Readonly<Record<string, number>>): boolean {
+  return level < unlockLevelFor(scenario) && !(bestStars[scenario.id] > 0);
+}
+
+/** Taxi and delivery pay rises with rank ("promotion"). */
+export function jobPayMultiplier(level: number): number {
+  if (level >= RANK_LEVEL.legend) return 2;
+  if (level >= RANK_LEVEL.citizen) return 1.75;
+  if (level >= RANK_LEVEL.insider) return 1.5;
+  if (level >= RANK_LEVEL.local) return 1.25;
+  return 1;
 }
 
 export function normalizeWords(text: string): string[] {

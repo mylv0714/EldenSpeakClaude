@@ -216,7 +216,8 @@ export function createApp({ config, llm, tts = null, limiter, getIp = () => 'loc
       countsTowardDaily: false,
       run: async (req, scenario, npc, llm) => {
         const prompt = buildDebriefPrompt(req, scenario, npc);
-        return sanitizeDebrief(await llm.json({ name: 'debrief', schema: DebriefReplySchema, temperature: 0.4, maxTokens: 2000, timeoutMs: 40_000, ...prompt }));
+        // gpt-oss reasons for ~2,200 tokens on a full conversation; at 2,000 most debriefs came back empty.
+        return sanitizeDebrief(await llm.json({ name: 'debrief', schema: DebriefReplySchema, temperature: 0.4, maxTokens: 6000, timeoutMs: 40_000, ...prompt }));
       },
     }),
   );

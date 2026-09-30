@@ -616,6 +616,53 @@ const PLACE_SCENARIOS: readonly Scenario[] = [
     maxTurns: 8, difficulty: 2, reward: { cash: 50, xp: 100 },
     effects: [{ type: 'unlockJob', job: 'taxi' }],
   },
+  // ── The Summit Club (members only from Insider rank) ──
+  {
+    id: 'summit_network', kind: 'place', placeId: 'summit', npcId: 'hargrove',
+    title: { en: 'Rooftop Networking', ko: '루프탑 네트워킹' },
+    brief: { en: 'Richard Hargrove owns half the skyline. Make an impression: introduce yourself, keep the small talk interesting and walk away with his contact.', ko: '리처드 하그로브는 도시 스카이라인의 절반을 가진 재벌이에요. 자기소개를 하고, 흥미로운 대화를 이어 가서 그의 연락처를 받아 내세요.' },
+    playerRole: 'a rising name in Elden City, attending a members-only evening at The Summit Club',
+    setting: 'The Summit Club rooftop at sunset: jazz trio, city lights below, champagne everywhere.',
+    npcBrief: "Start a little aloof. Ask who they are and what they do, and test them with one pointed question ('And why should that interest me?'). Get more interested if they tell a specific story, ask you good questions or show a sense of humor. Mention you're looking for fresh ideas for a new riverside project. If they ask properly (and have been interesting), hand them your card and suggest lunch next week.",
+    opening: { en: "Hmm. I don't believe we've met — and I've met everyone. Who might you be?", ko: '흠. 우리 초면인 것 같은데… 난 여기 모든 사람을 알거든. 누구시죠?' },
+    objectives: [
+      obj('o1', 'Introduce yourself and what you do', '자기소개와 하는 일 말하기', 'The learner introduces themselves and says what they do.'),
+      obj('o2', "Answer his challenge with a specific example", '그의 도발에 구체적인 예로 답하기', 'The learner answers a challenging question with a concrete story, example or reason.'),
+      obj('o3', 'Ask for his contact or a meeting', '연락처나 만남 요청하기', 'The learner asks for his contact details, card or a meeting.'),
+      obj('b1', 'Ask about his riverside project', '강변 프로젝트에 대해 묻기', 'The learner asks a follow-up question about his riverside project.', true),
+    ],
+    phrases: [
+      ph("I don't think we've been introduced. I'm…", '아직 인사를 못 나눈 것 같네요. 저는…'),
+      ph('Let me give you an example.', '예를 하나 들어 볼게요.'),
+      ph('What got you into real estate?', '부동산은 어떻게 시작하셨어요?'),
+      ph('Would you mind if I got your card?', '명함 한 장 받아도 될까요?'),
+      ph("I'd love to hear more about it over lunch.", '점심 드시면서 더 듣고 싶어요.'),
+    ],
+    maxTurns: 12, difficulty: 3, reward: { cash: 300, xp: 200 },
+  },
+  {
+    id: 'summit_wine', kind: 'place', placeId: 'summit', npcId: 'celeste',
+    title: { en: "The Sommelier's Test", ko: '소믈리에의 시험' },
+    brief: { en: "Order wine for a dinner of grilled salmon. Describe what you like, ask for a pairing — and if the bottle tastes wrong, send it back politely.", ko: '연어 구이 저녁에 곁들일 와인을 주문하세요. 취향을 설명하고 어울리는 와인을 추천받으세요. 맛이 이상하면 정중하게 돌려보내세요!' },
+    playerRole: 'a club member ordering wine to go with grilled salmon',
+    setting: 'The Summit Club dining room, candles and a wall of wine bottles.',
+    npcBrief: "Ask what they are eating and what kind of wine they usually enjoy (red or white, dry or sweet, light or bold). Recommend a crisp Oregon Pinot Noir or a Chablis, with the price per bottle ($65 / $80). After they choose, 'pour' it: this bottle is corked (smells like wet cardboard). Only if they politely say something is wrong, defend it once, then apologize and bring a fresh bottle. Stay gracious.",
+    opening: { en: 'Good evening, and welcome to The Summit. I understand you are having the salmon tonight — shall we find it the perfect wine?', ko: '안녕하세요, 서밋에 오신 걸 환영합니다. 오늘 연어를 드신다고요. 완벽한 와인을 찾아 드릴까요?' },
+    objectives: [
+      obj('o1', 'Describe the wine you like', '좋아하는 와인 취향 설명하기', 'The learner describes their wine preferences (red/white, dry/sweet, light/bold, etc.).'),
+      obj('o2', 'Choose a bottle', '와인 고르기', 'The learner chooses one of the recommended wines.'),
+      obj('o3', 'Politely send back the corked wine', '상한 와인 정중하게 돌려보내기', 'The learner politely says the wine tastes or smells wrong and asks for another bottle.'),
+      obj('b1', 'Ask why it pairs well with salmon', '연어와 어울리는 이유 묻기', 'The learner asks why the wine goes well with the dish.', true),
+    ],
+    phrases: [
+      ph('I usually prefer something dry and light.', '보통 드라이하고 가벼운 걸 좋아해요.'),
+      ph('What would you recommend with salmon?', '연어에는 뭘 추천하세요?'),
+      ph("I'll go with the Pinot Noir.", '피노 누아로 할게요.'),
+      ph("I'm sorry, but I think this wine is corked.", '죄송하지만 이 와인이 상한 것 같아요.'),
+      ph('Could we try another bottle?', '다른 병으로 바꿔 주실 수 있을까요?'),
+    ],
+    maxTurns: 12, difficulty: 3, reward: { cash: 250, xp: 190 },
+  },
 ];
 
 const STREET_SCENARIOS: readonly Scenario[] = [

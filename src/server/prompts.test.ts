@@ -108,6 +108,14 @@ describe('personalization and calls', () => {
     expect(buildNpcPrompt(req(), getScenario('cafe_order'), getNpc('mia')).system).not.toContain('Learner focus');
   });
 
+  it('lets the character know how well known the learner is, by rank', () => {
+    const at = (playerLevel?: number) => buildNpcPrompt(req({ playerLevel }), getScenario('cafe_order'), getNpc('mia')).system;
+    expect(at(1)).toContain('nobody knows them yet');
+    expect(at(7)).toContain('familiar local');
+    expect(at(30)).toContain('local legend');
+    expect(at()).not.toContain('Who the learner is in Elden City');
+  });
+
   it('tells the character when the scene is a phone call', () => {
     const r = req({ scenarioId: 'call_restaurant', npcId: 'marco', completed: [] });
     expect(buildNpcPrompt(r, getScenario('call_restaurant'), getNpc('marco')).system).toContain('PHONE CALL');

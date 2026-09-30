@@ -174,6 +174,17 @@ export const NPCS: readonly Npc[] = [
     personality: 'Gravel-voiced cab dispatcher who has seen it all. Quick, blunt questions. Wants drivers who are polite, know the city and stay calm.',
     look: look(4, HAIR.black, 'bald', '#f4d35e', { facialHair: 'beard', accessory: 'headset' }), voice: { pitch: 0.75, rate: 1 },
   }),
+  // The Summit Club (members only, Insider rank)
+  npc({
+    id: 'hargrove', name: 'Richard Hargrove', role: 'Real-estate Tycoon', roleKo: '부동산 재벌', gender: 'male', age: 61, accent: 'uk',
+    personality: 'Old-money tycoon who owns half the skyline. Dry wit, name-drops constantly, tests people with pointed questions to see if they are interesting. Warms up to confidence, specific stories and good questions; bored by flattery and vague small talk.',
+    look: look(0, HAIR.white, 'side', '#1c1c24', { facialHair: 'mustache' }), voice: { pitch: 0.8, rate: 0.95 },
+  }),
+  npc({
+    id: 'celeste', name: 'Celeste Moreau', role: 'Head Sommelier', roleKo: '수석 소믈리에', gender: 'female', age: 38, accent: 'uk',
+    personality: 'Elegant, precise head sommelier. Passionate about wine and a little theatrical. Uses tasting words (dry, fruity, bold, oaky, crisp) and expects guests to describe what they like. Gracious under pressure, but defends her choices politely before giving in.',
+    look: look(2, HAIR.auburn, 'bun', '#5a1a2b', { accessory: 'earrings' }), voice: { pitch: 1.05, rate: 1 },
+  }),
 
   // ── Street events ───────────────────────────────────────────────────
   npc({

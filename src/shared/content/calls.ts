@@ -133,6 +133,31 @@ export const CALL_SCENARIOS: readonly Scenario[] = [
     maxTurns: 10, difficulty: 2, reward: { cash: 40, xp: 140 },
   },
   {
+    // Rings once whenever the player reaches a new rank; the debrief's level estimate may suggest a harder level.
+    id: 'call_promotion', kind: 'call', npcId: 'clara', incoming: true,
+    title: { en: 'Promotion Test', ko: '승급 시험' },
+    brief: {
+      en: 'You reached a new rank! Coach Clara calls for a quick level check. Answer her questions as fully as you can — if you do well, she may suggest moving up a level.',
+      ko: '새 칭호를 달성했어요! 클라라 코치가 짧은 실력 점검 전화를 걸어요. 최대한 길고 완전하게 대답해 보세요. 잘하면 레벨을 올려 보자고 제안할 거예요.',
+    },
+    playerRole: 'an English learner who just reached a new rank in Elden City',
+    setting: "A short congratulation-and-check-in call from the learner's English coach.",
+    npcBrief: "Congratulate the learner warmly on their new standing in the city. Then run a quick level check: ask four questions that get gradually harder — 1) describe your week in Elden City, 2) compare two places in the city, 3) a hypothetical ('What would you do if you won a free trip anywhere?'), 4) an opinion with reasons ('Is it better to live downtown or by the beach? Why?'). One question at a time, react briefly and naturally, never correct them. After the fourth answer, thank them and say you will send your assessment right after the call.",
+    opening: { en: "Hello, it's Coach Clara! I just heard the news — congratulations! Have you got a minute for a quick check-in?", ko: '안녕하세요, 클라라 코치예요! 방금 소식 들었어요. 축하해요! 잠깐 실력 점검 좀 해 볼까요?' },
+    objectives: [
+      obj('o1', 'Answer all four questions', '네 질문에 모두 답하기', 'Over the conversation, the learner has answered four different questions from the coach.'),
+      obj('o2', 'Give an opinion with a reason', '이유를 들어 의견 말하기', 'The learner gives an opinion and supports it with at least one reason (because, since, that is why, etc.).'),
+      obj('b1', "Answer the 'what would you do' question with would", '"무엇을 하겠어요?" 질문에 would로 답하기', "The learner answers the hypothetical question using 'would' or ''d' correctly.", true),
+    ],
+    phrases: [
+      ph('This week I…', '이번 주에 저는…'),
+      ph('Compared to the beach, downtown is…', '해변에 비해 다운타운은…'),
+      ph("If I won a free trip, I'd go to…", '무료 여행에 당첨되면 저는 …에 갈 거예요.'),
+      ph("I think it's better to… because…", '저는 …하는 게 더 낫다고 생각해요. 왜냐하면…'),
+    ],
+    maxTurns: 10, difficulty: 2, reward: { cash: 100, xp: 150 },
+  },
+  {
     id: 'call_leo', kind: 'call', npcId: 'leo', incoming: true, freeTalk: true,
     title: { en: 'Leo Calling', ko: '레오의 전화' },
     brief: { en: 'Your cousin Leo is calling just to chat. Catch up!', ko: '사촌 레오가 그냥 수다 떨려고 전화했어요. 근황을 나눠요!' },
@@ -182,4 +207,5 @@ export const CALL_SCENARIOS: readonly Scenario[] = [
 ];
 
 export const OUTGOING_CALLS: readonly Scenario[] = CALL_SCENARIOS.filter((s) => !s.incoming && s.id !== 'call_coach');
-export const INCOMING_CALLS: readonly Scenario[] = CALL_SCENARIOS.filter((s) => s.incoming);
+/** Calls that may ring at random while roaming (the promotion test only rings on a new rank). */
+export const INCOMING_CALLS: readonly Scenario[] = CALL_SCENARIOS.filter((s) => s.incoming && s.id !== 'call_promotion');

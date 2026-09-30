@@ -3,7 +3,7 @@ import type { HintReply } from '@shared/api';
 import { getNpc } from '@shared/content/npcs';
 import { getScenario } from '@shared/content/scenarios';
 import { contextVars, fillTemplate } from '@shared/content/template';
-import { averageScore, bonusDoneCount, clamp, computeReward, computeStars, MOOD_START, requiredObjectivesDone } from '@shared/rules';
+import { averageScore, bonusDoneCount, clamp, computeReward, computeStars, levelFromXp, MOOD_START, requiredObjectivesDone } from '@shared/rules';
 import type { Outcome } from '@shared/types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../api/client';
@@ -22,6 +22,8 @@ interface ConvState {
   mood: number;
   turns: number;
   hintsUsed: number;
+  /** "Say it in English" translations used (together with hints, they cancel the no-help bonus). */
+  translationsUsed: number;
   status: ConvStatus;
   pending: boolean;
   error: string | null;
@@ -69,6 +71,7 @@ export function useConversation(launch: ConversationLaunch) {
       mood: MOOD_START,
       turns: 0,
       hintsUsed: 0,
+      translationsUsed: 0,
       status: 'ongoing',
       pending: false,
       error: null,
@@ -107,6 +110,7 @@ export function useConversation(launch: ConversationLaunch) {
       level: getSave().level,
       nativeLang: getSave().settings.uiLang,
       playerName: getSave().name,
+      playerLevel: levelFromXp(getSave().xp).level,
       context: launch.context,
     }),
     [scenario.id, npc.id, launch.context],
@@ -240,6 +244,7 @@ export function useConversation(launch: ConversationLaunch) {
       const s = ref.current;
       try {
         const reply = await api.translate({ ...base(), history: s.messages.map((m) => ({ role: m.role, text: m.text })).slice(-30), text });
+        if (reply.en) setState((cur) => ({ ...cur, translationsUsed: cur.translationsUsed + 1 }));
         return reply.en || null;
       } catch (err) {
         setState((cur) => ({ ...cur, error: errorText(err) }));
@@ -277,7 +282,15 @@ export function useConversation(launch: ConversationLaunch) {
       mood: s.mood,
       messages: s.messages,
       transcript: s.messages.map((m) => ({ role: m.role, text: m.text })),
-      reward: computeReward(scenario, { outcome, avgScore, bonusDone: bonus, hintsUsed: s.hintsUsed, mood: s.mood }),
+      reward: computeReward(scenario, {
+        outcome,
+        avgScore,
+        bonusDone: bonus,
+        hintsUsed: s.hintsUsed,
+        mood: s.mood,
+        helpUsed: s.hintsUsed + s.translationsUsed,
+        playerLevel: levelFromXp(getSave().xp).level,
+      }),
       debrief: null,
     };
   }, [launch, scenario]);

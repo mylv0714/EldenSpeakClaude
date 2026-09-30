@@ -6,9 +6,10 @@ import { IDIOM_BY_ID } from '@shared/content/idioms';
 import { SCENARIO_BY_ID } from '@shared/content/scenarios';
 import { PARTNER_STAGE } from '@shared/content/romance';
 import { type ContactId, STORY } from '@shared/content/story';
-import { dayKey, levelFromXp, normalizeWords, scheduleReview } from '@shared/rules';
-import type { CarModelId, Outcome, ScenarioEffect } from '@shared/types';
+import { dayKey, levelFromXp, normalizeWords, type RankId, RANKS, type Reward, scheduleReview } from '@shared/rules';
+import type { CarModelId, Level, Outcome, ScenarioEffect } from '@shared/types';
 import { create } from 'zustand';
+import { OUTFITS } from '../game/outfits';
 import { type PhoneMessage, type PhraseCard, type SaveData, type Settings, writeSave } from './save';
 
 interface GameStore {
@@ -138,6 +139,13 @@ export function collectIdiom(id: string): void {
   });
 }
 
+/** The biggest Elden Motors discount the player holds (only one coupon applies per car). */
+export function bestCoupon(coupons: Readonly<Record<string, number>>): { id: string; discount: number } | null {
+  let best: { id: string; discount: number } | null = null;
+  for (const [id, discount] of Object.entries(coupons)) if (!best || discount > best.discount) best = { id, discount };
+  return best;
+}
+
 export function buyCar(model: CarModelId, price: number, couponId?: string): void {
   mutate((s) => {
     s.cash -= price;
@@ -151,6 +159,51 @@ export function buyOutfit(id: string, price: number): void {
     s.cash -= price;
     if (!s.outfits.includes(id)) s.outfits.push(id);
     s.outfit = id;
+  });
+}
+
+export type RankGift = { type: 'outfit'; id: string } | { type: 'coupon'; id: string; discount: number } | { type: 'cash'; amount: number } | { type: 'vip' };
+
+/** One-time gifts for reaching each rank. */
+export const RANK_GIFTS: Partial<Record<RankId, RankGift[]>> = {
+  newcomer: [{ type: 'outfit', id: 'smart' }],
+  local: [{ type: 'coupon', id: 'rank10', discount: 0.1 }],
+  insider: [{ type: 'outfit', id: 'tuxedo' }, { type: 'vip' }],
+  citizen: [{ type: 'outfit', id: 'citizen' }],
+  legend: [{ type: 'outfit', id: 'legend' }],
+};
+
+/**
+ * Hands out the gifts of every rank reached but not yet rewarded (older saves catch up the first time).
+ * Returns what was given, per rank, lowest first. An outfit the player already owns becomes its price in cash.
+ */
+export function claimRankGifts(): { rank: RankId; gifts: RankGift[] }[] {
+  const level = levelFromXp(getSave().xp).level;
+  const due = RANKS.filter((r) => r.min <= level && RANK_GIFTS[r.id] && !getSave().rankGifts.includes(r.id));
+  if (due.length === 0) return [];
+  const given: { rank: RankId; gifts: RankGift[] }[] = [];
+  mutate((s) => {
+    for (const r of due) {
+      const gifts = RANK_GIFTS[r.id]!.map((g): RankGift => {
+        if (g.type === 'outfit' && s.outfits.includes(g.id)) return { type: 'cash', amount: OUTFITS.find((o) => o.id === g.id)?.price ?? 0 };
+        return g;
+      });
+      for (const g of gifts) {
+        if (g.type === 'outfit') s.outfits.push(g.id);
+        if (g.type === 'coupon') s.coupons[g.id] = Math.max(s.coupons[g.id] ?? 0, g.discount);
+        if (g.type === 'cash') s.cash += g.amount;
+      }
+      s.rankGifts.push(r.id);
+      given.push({ rank: r.id, gifts });
+    }
+  });
+  return given;
+}
+
+/** The learner's English level (A1–C1), e.g. after the promotion test. */
+export function setEnglishLevel(level: Level): void {
+  mutate((s) => {
+    s.level = level;
   });
 }
 
@@ -186,7 +239,7 @@ export interface ConversationRecord {
   stars: number;
   avgScore: number;
   turns: number;
-  reward: { cash: number; xp: number };
+  reward: Reward;
 }
 
 export interface ConversationApplied {

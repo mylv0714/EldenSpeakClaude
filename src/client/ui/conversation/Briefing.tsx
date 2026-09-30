@@ -2,6 +2,7 @@ import { PLACE_BY_ID } from '@shared/content/city';
 import { getNpc } from '@shared/content/npcs';
 import { getScenario } from '@shared/content/scenarios';
 import { contextVars, fillTemplate } from '@shared/content/template';
+import { levelFromXp, RANK_LEVEL } from '@shared/rules';
 import { ChevronLeft, Clock, Mic, Volume2 } from 'lucide-react';
 import { sfx } from '../../audio/sfx';
 import { speakPhrase } from '../../audio/voice';
@@ -132,6 +133,11 @@ export function Briefing({
           </span>
           {scenario.reward.cash > 0 && <span className="font-bold text-emerald-300">{money(scenario.reward.cash)}+</span>}
           <span className="font-bold text-yellow-300">{scenario.reward.xp} XP</span>
+          {levelFromXp(save.xp).level >= RANK_LEVEL.newcomer && (
+            <span className="text-sky-200" title={t('힌트와 한→영 번역 없이 성공하면', 'Succeed without hints or translations')}>
+              🧠 {t('노힌트 XP +30%', 'No-help XP +30%')}
+            </span>
+          )}
           <span className="hidden items-center gap-1 sm:inline-flex">
             <Mic size={13} /> {t('마이크로 말하거나 입력하세요', 'Speak or type')}
           </span>

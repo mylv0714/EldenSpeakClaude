@@ -38,6 +38,8 @@ export interface Place {
   blurb: Localized;
   job?: JobKind;
   shop?: 'cars' | 'outfits';
+  /** Members only: the player's level needed to get in (rank reward). */
+  minLevel?: number;
 }
 
 const P = (
@@ -77,6 +79,8 @@ export const PLACES: readonly Place[] = [
   P('bar', 'Moonlight Lounge', '문라이트 라운지', '🍸', { en: 'Live jazz, dim lights and good conversation.', ko: '라이브 재즈, 은은한 조명, 그리고 좋은 대화.' }),
   P('pizzeria', "Tony's Pizza", '토니스 피자', '🍕', { en: 'Hot pizza, fast delivery. Drivers wanted!', ko: '뜨거운 피자, 빠른 배달. 배달원 구함!' }, { job: 'pizza' }),
   P('cabs', 'Elden Cabs', '엘든 택시', '🚕', { en: 'Drive a cab, meet the whole city.', ko: '택시를 몰며 도시 사람들을 만나 보세요.' }, { job: 'taxi' }),
+  // Level 10 = Insider (RANK_LEVEL.insider); a literal here keeps content free of the rules module.
+  P('summit', 'The Summit Club', '서밋 클럽', '🥂', { en: "A members-only rooftop club. Everyone who's anyone.", ko: '회원 전용 루프탑 클럽. 도시의 거물들이 모이는 곳.' }, { minLevel: 10 }),
 ];
 
 /** English district names (match the client map labels); the only values accepted as date context. */

@@ -17,7 +17,7 @@ import type {
 import { DISTRICT_NAMES, INTERVIEW_TOPICS, PLACE_BY_ID, PIZZA_MENU, STREET_NAMES } from '@shared/content/city';
 import { contextVars, fillTemplate } from '@shared/content/template';
 import { WEAK_POINT_BY_ID, WEAK_POINTS } from '@shared/content/weakPoints';
-import { clamp } from '@shared/rules';
+import { clamp, type RankId, rankOf } from '@shared/rules';
 import type { Level, NativeLang, Npc, Offense, RouteStep, Scenario, ScenarioContext } from '@shared/types';
 
 export const LEVEL_GUIDE: Record<Level, { maxWords: number; guide: string }> = {
@@ -158,6 +158,7 @@ export function buildNpcPrompt(req: TurnRequest, scenario: Scenario, npc: Npc): 
   const focusBlock = focus.length
     ? `\n\n## Learner focus (never mention this out loud)\nThe learner is working on: ${focus.map((w) => w.label.en).join('; ')}. When it fits the scene naturally, ${focus.map((w) => w.practice).join('; and ')}.`
     : '';
+  const standing = req.playerLevel ? `\n\n## Who the learner is in Elden City\n${RANK_STANDING[rankOf(req.playerLevel).id]} If it fits your character, let it show once in a small, natural way (a remark, how familiar you are with them). Don't bring it up in every line.` : '';
   const call =
     scenario.kind === 'call'
       ? '\n- This is a PHONE CALL: you cannot see the learner, so say everything out loud, ask them to repeat or spell names and numbers when it matters, and read important details back.'
@@ -165,7 +166,7 @@ export function buildNpcPrompt(req: TurnRequest, scenario: Scenario, npc: Npc): 
 
   const system = `You voice a character in "EldenSpeak", an open-world game where English learners practice real conversations in Elden City. Stay in character and reply naturally.
 
-${sceneBlock(scenario, npc, req)}${memory}${focusBlock}
+${sceneBlock(scenario, npc, req)}${memory}${standing}${focusBlock}
 
 ${scenario.freeTalk ? '## This is a free, open-ended chat\nThere are no goals. Follow the learner\'s lead, keep it natural and never close the conversation yourself.' : `## What the learner is trying to do (never mention this out loud)\n${goalsBlock(scenario, req.completed)}`}
 
@@ -194,6 +195,16 @@ Write the JSON for your next line.`;
 
   return { system, user };
 }
+
+/** How well known the learner is around town, by rank (from their game level). */
+const RANK_STANDING: Record<RankId, string> = {
+  tourist: 'They only just arrived in the city; nobody knows them yet.',
+  newcomer: 'They have been in the city a little while; a few people recognize their face.',
+  local: 'They are a familiar local now; people treat them like a regular.',
+  insider: 'They are well known around town and seem to know everyone and every shortcut.',
+  citizen: 'They are a respected citizen; people are genuinely glad to see them.',
+  legend: 'They are a local legend; people are a little starstruck to meet them.',
+};
 
 /** Prompt #2 of a turn, run in parallel: grade the learner's newest message and detect achieved goals. */
 export function buildJudgePrompt(req: TurnRequest, scenario: Scenario, npc: Npc): Prompt {
@@ -290,7 +301,7 @@ Outcome: ${req.outcome}. Learner level setting: ${req.level}.
 - improvements: 1-3 short, specific points in ${native.name}. Quote the learner's actual words and give the better English version.
 - expressions: 3-5 useful English expressions the LEARNER (as ${fillTemplate(scenario.playerRole, contextVars(req.context, 'en', req.playerName))}) could say in this situation — prefer ones that would have helped them. Each has "native": its ${native.name} ${req.nativeLang === 'ko' ? 'translation' : 'meaning'}.
 - grammar, vocabulary, fluency: 0-100 each, for the learner's English only.
-- level: the CEFR level the learner showed in this conversation.
+- level: the CEFR level the learner showed in this conversation, judged only from their own words (range of grammar, vocabulary and how well they connect and develop ideas). The level setting above is just the difficulty they picked: the learner may well be above or below it, so do not simply repeat it.
 - memory: one English sentence (max 20 words), written from ${npc.name}'s point of view, about what to remember about ${req.playerName} next time they meet.
 - weakPoints: the ids (at most 2) of the problems below that the learner clearly showed more than once in THIS conversation; [] if none:
 ${WEAK_POINTS.map((w) => `  - ${w.id}: ${w.describe}`).join('\n')}`;

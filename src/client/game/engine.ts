@@ -6,6 +6,7 @@ import { OVERHEARD, type Overheard } from '@shared/content/overheard';
 import { nextRomancePlace } from '@shared/content/romance';
 import { STORY } from '@shared/content/story';
 import { SCENARIO_BY_ID } from '@shared/content/scenarios';
+import { jobPayMultiplier, levelFromXp } from '@shared/rules';
 import type { CarModelId, JobKind, Offense, Outcome } from '@shared/types';
 import { sfx } from '../audio/sfx';
 import { speakAmbient, speakNpc, speakPhrase, stopSpeaking } from '../audio/voice';
@@ -1384,6 +1385,7 @@ export class Game {
         this.timers.route = 0;
       },
       earn: (amount, reason) => this.onEvent({ type: 'earn', amount, reason }),
+      payRate: () => jobPayMultiplier(levelFromXp(getSave().xp).level),
       fine: (amount, reason) => this.onEvent({ type: 'fine', amount, reason }),
       report: (offense) => this.reportOffense(offense),
       spawnJobVehicle: (kind) => this.spawnJobVehicle(kind),

@@ -5,8 +5,14 @@ import {
   bonusDoneCount,
   computeReward,
   computeStars,
+  isScenarioLocked,
+  jobPayMultiplier,
   levelFromXp,
+  NO_HELP_BONUS,
+  RANK_LEVEL,
+  rankOf,
   requiredObjectivesDone,
+  unlockLevelFor,
   scheduleReview,
   scorePronunciation,
   similarity,
@@ -62,6 +68,47 @@ describe('rewards', () => {
     expect(computeReward(scenario, { ...base, outcome: 'success', mood: 95 }).cash).toBeGreaterThan(plain.cash);
     expect(computeReward(scenario, { ...base, outcome: 'success', hintsUsed: 2 }).cash).toBeLessThan(plain.cash);
     expect(computeReward(scenario, { ...base, outcome: 'success', hintsUsed: 50 }).cash).toBeGreaterThan(0);
+  });
+  it('gives +30% XP for a success without any help, from Newcomer rank on', () => {
+    const plain = computeReward(scenario, { ...base, outcome: 'success', helpUsed: 0, playerLevel: 2 });
+    expect(plain.noHelpBonus).toBeUndefined();
+    const bonus = computeReward(scenario, { ...base, outcome: 'success', helpUsed: 0, playerLevel: RANK_LEVEL.newcomer });
+    expect(bonus).toEqual({ cash: plain.cash, xp: Math.round(plain.xp * NO_HELP_BONUS), noHelpBonus: true });
+    // A single translation (counted in helpUsed, not hintsUsed) cancels it, and failures never get it.
+    expect(computeReward(scenario, { ...base, outcome: 'success', helpUsed: 1, playerLevel: 10 }).noHelpBonus).toBeUndefined();
+    expect(computeReward(scenario, { ...base, outcome: 'failure', helpUsed: 0, playerLevel: 10 }).noHelpBonus).toBeUndefined();
+  });
+});
+
+describe('ranks and unlocks', () => {
+  it('names the rank for each level', () => {
+    expect(rankOf(1).id).toBe('tourist');
+    expect(rankOf(5).id).toBe('newcomer');
+    expect(rankOf(RANK_LEVEL.local).id).toBe('local');
+    expect(rankOf(99).id).toBe('legend');
+  });
+  it('opens normal missions at Newcomer and demanding ones at Local', () => {
+    const easy = getScenario('cafe_order');
+    const normal = getScenario('cabs_signup');
+    const hard = getScenario('car_deal');
+    expect([easy, normal, hard].map((s) => s.difficulty)).toEqual([1, 2, 3]);
+    expect(isScenarioLocked(easy, 1, {})).toBe(false);
+    expect(isScenarioLocked(normal, 2, {})).toBe(true);
+    expect(isScenarioLocked(normal, RANK_LEVEL.newcomer, {})).toBe(false);
+    expect(isScenarioLocked(hard, RANK_LEVEL.newcomer, {})).toBe(true);
+    expect(isScenarioLocked(hard, RANK_LEVEL.local, {})).toBe(false);
+  });
+  it('keeps missions the player already passed open', () => {
+    expect(isScenarioLocked(getScenario('car_deal'), 1, { car_deal: 2 })).toBe(false);
+  });
+  it('locks outgoing calls but never story, incoming calls or street events', () => {
+    expect(unlockLevelFor(getScenario('call_support'))).toBe(RANK_LEVEL.local);
+    expect(unlockLevelFor(getScenario('story_immigration'))).toBe(1);
+    expect(unlockLevelFor(getScenario('call_promotion'))).toBe(1);
+    expect(unlockLevelFor(getScenario('tourist_directions'))).toBe(1);
+  });
+  it('raises job pay with rank', () => {
+    expect([1, 5, 6, 10, 15, 22].map(jobPayMultiplier)).toEqual([1, 1, 1.25, 1.5, 1.75, 2]);
   });
 });
 

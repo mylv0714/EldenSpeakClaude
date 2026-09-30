@@ -1,4 +1,5 @@
 import type { ChatLine, DebriefReply, TurnFeedback } from '@shared/api';
+import type { Reward } from '@shared/rules';
 import type { Emotion, JobKind, Outcome, ScenarioContext } from '@shared/types';
 
 /** Where a conversation came from, so the game can react when it ends. */
@@ -46,6 +47,6 @@ export interface ConversationSummary {
   mood: number;
   messages: ChatMessage[];
   transcript: ChatLine[];
-  reward: { cash: number; xp: number };
+  reward: Reward;
   debrief: DebriefReply | null;
 }

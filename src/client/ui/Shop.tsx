@@ -5,7 +5,7 @@ import { OUTFITS } from '../game/outfits';
 import { carSprite } from '../game/render/sprites';
 import { CAR_MODELS, DEALER_STOCK } from '../game/vehicle';
 import { useLang, useTr } from '../i18n';
-import { buyCar, buyOutfit, useGame, wearOutfit } from '../state/game';
+import { bestCoupon, buyCar, buyOutfit, useGame, wearOutfit } from '../state/game';
 import { toast } from '../state/ui';
 import { Avatar } from './Avatar';
 import { CloseButton, Modal, money } from './common';
@@ -20,7 +20,8 @@ export function Shop({ shop, onClose, onCarDelivered }: { shop: 'cars' | 'outfit
   const t = useTr();
   const lang = useLang();
   const save = useGame((s) => s.save!);
-  const coupon = save.coupons.dealer20;
+  const best = bestCoupon(save.coupons);
+  const coupon = best?.discount;
 
   return (
     <Modal onBackdrop={onClose} wide>
@@ -29,7 +30,7 @@ export function Shop({ shop, onClose, onCarDelivered }: { shop: 'cars' | 'outfit
           <h2 className="display text-2xl uppercase text-white">{shop === 'cars' ? 'Elden Motors' : 'Maison Mode'}</h2>
           <p className="text-sm text-white/60">
             {t('보유 금액', 'Cash')}: <b className="text-emerald-300">{money(save.cash)}</b>
-            {shop === 'cars' && coupon && <span className="ml-2 chip bg-emerald-500/20 text-emerald-200">🎟️ {t('20% 할인 쿠폰 적용', '20% coupon applied')}</span>}
+            {shop === 'cars' && coupon && <span className="ml-2 chip bg-emerald-500/20 text-emerald-200">🎟️ {t(`${Math.round(coupon * 100)}% 할인 쿠폰 적용`, `${Math.round(coupon * 100)}% coupon applied`)}</span>}
           </p>
         </div>
         <CloseButton onClick={onClose} />
@@ -64,7 +65,7 @@ export function Shop({ shop, onClose, onCarDelivered }: { shop: 'cars' | 'outfit
                       className="btn-primary px-3 py-2 text-xs"
                       disabled={save.cash < price}
                       onClick={() => {
-                        buyCar(id, price, coupon ? 'dealer20' : undefined);
+                        buyCar(id, price, best?.id);
                         sfx.play('cash');
                         toast(t(`${m.name} 구매 완료! 🚗`, `You bought the ${m.name}! 🚗`), 'cash');
                         onCarDelivered(id);
@@ -76,7 +77,7 @@ export function Shop({ shop, onClose, onCarDelivered }: { shop: 'cars' | 'outfit
                 </div>
               );
             })
-          : OUTFITS.map((o) => {
+          : OUTFITS.filter((o) => !o.exclusive || save.outfits.includes(o.id)).map((o) => {
               const owned = save.outfits.includes(o.id) || o.price === 0;
               const wearing = save.outfit === o.id;
               return (
@@ -84,6 +85,7 @@ export function Shop({ shop, onClose, onCarDelivered }: { shop: 'cars' | 'outfit
                   <Avatar look={{ ...save.look, shirt: o.shirt }} size={52} />
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-white">{o.name[lang]}</div>
+                    {o.exclusive && <div className="text-[11px] font-semibold text-yellow-300">🎖️ {t('칭호 선물', 'Rank gift')}</div>}
                     <div className="mt-1 flex gap-1">
                       <span className="h-3 w-6 rounded" style={{ background: o.shirt }} />
                       <span className="h-3 w-6 rounded" style={{ background: o.pants }} />

@@ -42,6 +42,8 @@ const base = {
   level: Level,
   nativeLang: Lang,
   playerName: z.string().trim().min(1).max(32),
+  /** Game level from XP; the server turns it into the player's rank so characters can recognize them. */
+  playerLevel: z.number().int().min(1).max(999).optional(),
   context: ContextSchema.optional(),
 };
 

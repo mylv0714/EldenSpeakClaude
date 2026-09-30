@@ -2,6 +2,7 @@ import type { DebriefReply } from '@shared/api';
 import { getScenario } from '@shared/content/scenarios';
 import { WEAK_POINT_BY_ID } from '@shared/content/weakPoints';
 import { levelFromXp } from '@shared/rules';
+import { type Level, LEVELS } from '@shared/types';
 import { Loader2, MicVocal, RotateCcw, Star, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
@@ -10,12 +11,60 @@ import { speakPhrase } from '../../audio/voice';
 import { errorText } from '../../conversation/useConversation';
 import type { ConversationSummary } from '../../conversation/types';
 import { useLang, useTr } from '../../i18n';
-import { addPhrase, applyDebrief, getSave, useGame } from '../../state/game';
+import { addPhrase, applyDebrief, getSave, setEnglishLevel, useGame } from '../../state/game';
 import { Bar, money, Stars } from '../common';
 import { Diff } from './Diff';
 import { ShadowSheet } from './ShadowSheet';
 
 type Tab = 'feedback' | 'corrections' | 'expressions';
+
+/** After the promotion test: Coach Clara suggests the next English level when the learner showed it. */
+function PromotionVerdict({ shown }: { shown: Level }) {
+  const t = useTr();
+  const current = useGame((s) => s.save!.level);
+  const [choice, setChoice] = useState<'up' | 'kept' | null>(null);
+  // Frozen at first render: the level we started from, so the card doesn't re-evaluate after moving up.
+  const [from] = useState(current);
+  const next = LEVELS[LEVELS.indexOf(from) + 1];
+  const ready = next !== undefined && LEVELS.indexOf(shown) > LEVELS.indexOf(from);
+  if (!ready) {
+    return (
+      <p className="mx-auto mt-3 max-w-md rounded-xl bg-white/5 px-4 py-3 text-sm text-white/80">
+        🎓 {t(`클라라 코치: 지금 레벨(${from})이 딱 맞아요. 이대로 실력을 다져 봐요!`, `Coach Clara: ${from} suits you right now. Keep building on it!`)}
+      </p>
+    );
+  }
+  return (
+    <div className="mx-auto mt-3 max-w-md rounded-xl bg-sky-500/15 px-4 py-3 text-sm text-sky-50 ring-1 ring-sky-400/40">
+      {choice === 'up' ? (
+        <p>🎓 {t(`좋아요! 이제 캐릭터들이 ${current} 수준으로 말해요.`, `Great! Characters now speak at ${current} level.`)}</p>
+      ) : choice === 'kept' ? (
+        <p>🎓 {t(`알겠어요. ${from}에서 조금 더 연습해요. 레벨은 설정에서 언제든 바꿀 수 있어요.`, `Okay, more practice at ${from} first. You can change it in Settings anytime.`)}</p>
+      ) : (
+        <>
+          <p>
+            🎓 {t(`클라라 코치: 이번 대화에서 ${shown} 수준을 보여 줬어요. 대화 난이도를 ${next}(으)로 올려 볼까요?`, `Coach Clara: You spoke at ${shown} level. Shall we move you up to ${next}?`)}
+          </p>
+          <div className="mt-2 flex justify-center gap-2">
+            <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setChoice('kept')}>
+              {t('지금은 그대로', 'Not yet')}
+            </button>
+            <button
+              className="btn-primary px-3 py-1.5 text-xs"
+              onClick={() => {
+                setEnglishLevel(next);
+                sfx.play('levelup');
+                setChoice('up');
+              }}
+            >
+              {t(`${next}(으)로 올리기`, `Move up to ${next}`)}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function Results({
   summary,
@@ -98,6 +147,7 @@ export function Results({
           <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-lg font-bold">
             {summary.reward.cash > 0 && <span className="display text-3xl text-emerald-400 outline-text">+{money(summary.reward.cash)}</span>}
             {summary.reward.xp > 0 && <span className="chip bg-yellow-400/20 text-base text-yellow-200">+{summary.reward.xp} XP</span>}
+            {summary.reward.noHelpBonus && <span className="chip bg-sky-500/20 text-sm text-sky-100">🧠 {t('노힌트 보너스 XP +30%', 'No-help bonus XP +30%')}</span>}
             {spoke && <span className="chip bg-white/10 text-base text-white/80">{t('평균 점수', 'Avg score')} {summary.avgScore}</span>}
           </div>
           {levelUp && <div className="display mt-2 text-2xl uppercase text-sky-300 animate-pop">⬆ {t(`레벨 업! Lv.${levelUp}`, `Level up! Lv.${levelUp}`)}</div>}
@@ -110,6 +160,7 @@ export function Results({
             </div>
             <Bar value={lvl.into} max={lvl.needed} />
           </div>
+          {scenario.id === 'call_promotion' && debrief && <PromotionVerdict shown={debrief.level} />}
         </div>
 
         {spoke && (

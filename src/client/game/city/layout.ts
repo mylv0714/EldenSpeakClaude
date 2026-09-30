@@ -94,6 +94,7 @@ export const PLACE_SITES: Record<string, PlaceSiteDef> = {
   bar: { i: 3, j: 4, side: 'N', w: 170, d: 130, h: 110, roof: '#3b1f4a' },
   pizzeria: { i: 1, j: 6, side: 'N', w: 150, d: 120, h: 55, roof: '#b8322a' },
   cabs: { i: 0, j: 5, side: 'E', w: 220, d: 170, h: 50, roof: '#f1c40f' },
+  summit: { i: 5, j: 2, side: 'S', w: 200, d: 180, h: 520, roof: '#1c1a2e' },
 };
 
 export const DISTRICT_LABEL: Record<District, { en: string; ko: string }> = {

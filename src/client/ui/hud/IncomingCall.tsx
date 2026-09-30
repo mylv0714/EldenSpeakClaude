@@ -15,8 +15,9 @@ export function IncomingCall({ scenario, onAccept, onDecline, onMissed }: { scen
   const t = useTr();
   const lang = useLang();
   const npc = getNpc(scenario.npcId!);
-  const known = scenario.npcId === 'leo';
-  const caller = known ? CONTACTS.leo.name[lang] : CONTACTS.unknown.name[lang];
+  // Leo and Coach Clara are in your contacts; everyone else is an unknown number.
+  const known = scenario.npcId === 'leo' || scenario.npcId === 'clara';
+  const caller = scenario.npcId === 'leo' ? CONTACTS.leo.name[lang] : known ? `${npc.name} · ${scenario.title[lang]}` : CONTACTS.unknown.name[lang];
 
   useEffect(() => {
     const ring = () => {

@@ -7,6 +7,8 @@ export interface Outfit {
   shirt: string;
   pants: string;
   price: number;
+  /** Rank gift: never sold, only shown once owned. */
+  exclusive?: boolean;
 }
 
 export const OUTFITS: readonly Outfit[] = [
@@ -18,4 +20,8 @@ export const OUTFITS: readonly Outfit[] = [
   { id: 'business', name: { en: 'Business Suit', ko: '비즈니스 정장' }, shirt: '#1e3a5f', pants: '#1e3a5f', price: 450 },
   { id: 'leather', name: { en: 'Leather Jacket', ko: '가죽 재킷' }, shirt: '#2d2d2d', pants: '#495057', price: 600 },
   { id: 'royal', name: { en: 'Royal Purple', ko: '로열 퍼플' }, shirt: '#7048e8', pants: '#212529', price: 800 },
+  // Rank gifts (Insider, Citizen, Legend)
+  { id: 'tuxedo', name: { en: 'Summit Tuxedo', ko: '서밋 턱시도' }, shirt: '#111111', pants: '#111111', price: 0, exclusive: true },
+  { id: 'citizen', name: { en: 'City Blue', ko: '시티 블루' }, shirt: '#0b7285', pants: '#e9ecef', price: 0, exclusive: true },
+  { id: 'legend', name: { en: 'Legend Gold', ko: '레전드 골드' }, shirt: '#f2b705', pants: '#1a1a1a', price: 0, exclusive: true },
 ];

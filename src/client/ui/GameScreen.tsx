@@ -2,17 +2,20 @@ import { INCOMING_CALLS } from '@shared/content/calls';
 import { PARTNER_STAGE } from '@shared/content/romance';
 import { CONTACTS, STORY } from '@shared/content/story';
 import { getScenario } from '@shared/content/scenarios';
+import { RANKS } from '@shared/rules';
 import type { CarModelId, Scenario } from '@shared/types';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sfx } from '../audio/sfx';
 import { stopSpeaking } from '../audio/voice';
 import type { ConversationLaunch, ConversationSummary } from '../conversation/types';
 import { Game, type EngineEvent } from '../game/engine';
+import { OUTFITS } from '../game/outfits';
 import { CAR_MODELS } from '../game/vehicle';
 import { tr, useTr } from '../i18n';
 import { platform } from '../platform';
 import {
   applyConversation,
+  claimRankGifts,
   collectIdiom,
   type ConversationApplied,
   earn,
@@ -21,6 +24,7 @@ import {
   markTutorial,
   mutate,
   payFine,
+  type RankGift,
   setSave,
   startStoryStep,
   useGame,
@@ -44,6 +48,21 @@ import { Shop } from './Shop';
 
 function launchFor(s: Scenario): ConversationLaunch {
   return { scenarioId: s.id, npcId: s.npcId!, origin: { kind: 'place', placeId: s.placeId! } };
+}
+
+function rankGiftText(g: RankGift): string {
+  switch (g.type) {
+    case 'outfit': {
+      const o = OUTFITS.find((x) => x.id === g.id)!;
+      return tr(`👔 선물: ${o.name.ko} (메종 모드에서 입을 수 있어요)`, `👔 Gift: ${o.name.en} (wear it at Maison Mode)`);
+    }
+    case 'coupon':
+      return tr(`🎟️ 선물: 엘든 모터스 ${Math.round(g.discount * 100)}% 쿠폰`, `🎟️ Gift: ${Math.round(g.discount * 100)}% Elden Motors coupon`);
+    case 'cash':
+      return tr(`💵 선물: $${g.amount} (이미 가진 옷 대신)`, `💵 Gift: $${g.amount} (you already had the outfit)`);
+    case 'vip':
+      return tr('🥂 서밋 클럽 회원이 됐어요! 이제 입장할 수 있어요', '🥂 You are now a Summit Club member!');
+  }
 }
 
 /** Real-time gap between incoming calls (they only ring while you roam freely). */
@@ -133,6 +152,38 @@ export function GameScreen() {
   useEffect(() => {
     if (import.meta.env.DEV) Object.assign(window, { __ring: (id?: string) => ring(id ? getScenario(id) : undefined) });
   }, [ring]);
+
+  // ── New rank: one-time gifts, a banner, then Coach Clara calls for the promotion test. ──
+  // Waits until no overlay is open, so it lands after the results screen whatever gave the XP.
+  const xp = useGame((s) => s.save?.xp ?? 0);
+  const [promotionDue, setPromotionDue] = useState(false);
+  useEffect(() => {
+    if (overlay.kind !== 'none') return;
+    // A short delay so a catch-up on game load isn't announced behind the loading screen.
+    const t = setTimeout(() => {
+      const reached = claimRankGifts();
+      if (reached.length === 0) return;
+      const top = RANKS.find((r) => r.id === reached[reached.length - 1].rank)!;
+      sfx.play('levelup');
+      showBanner(tr(`🎖️ 새 칭호: ${top.title.ko}`, `🎖️ New rank: ${top.title.en}`), 'pass', tr('칭호 선물을 받았어요', 'You received a rank gift'));
+      reached.forEach(({ gifts }, i) =>
+        setTimeout(() => {
+          for (const g of gifts) toast(rankGiftText(g), 'good');
+        }, 1200 + i * 600),
+      );
+      setPromotionDue(true);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [xp, overlay.kind]);
+  // Re-arms until it actually rings (the gifts are already claimed, so the call must still come).
+  useEffect(() => {
+    if (!promotionDue || overlay.kind !== 'none' || incoming) return;
+    const t = setTimeout(() => {
+      setPromotionDue(false);
+      ring(getScenario('call_promotion'));
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [promotionDue, overlay.kind, incoming, ring]);
   const answerCall = () => {
     const s = incoming!;
     setIncoming(null);

@@ -2,10 +2,12 @@ import { PLACE_BY_ID } from '@shared/content/city';
 import { OUTGOING_CALLS } from '@shared/content/calls';
 import { getNpc } from '@shared/content/npcs';
 import { WEAK_POINT_BY_ID } from '@shared/content/weakPoints';
+import { isScenarioLocked, levelFromXp, rankFor, unlockLevelFor } from '@shared/rules';
 import { Phone } from 'lucide-react';
 import { sfx } from '../../audio/sfx';
 import { useLang, useTr } from '../../i18n';
 import { topWeakPoints, useGame } from '../../state/game';
+import { toast } from '../../state/ui';
 import { Avatar } from '../Avatar';
 import { Difficulty, Stars } from '../common';
 import type { PhoneActions } from './Phone';
@@ -15,6 +17,7 @@ export function CallsApp({ actions }: { actions: PhoneActions }) {
   const lang = useLang();
   const save = useGame((s) => s.save!);
   const weak = topWeakPoints(save);
+  const level = levelFromXp(save.xp).level;
   const coach = getNpc('clara');
   const call = (scenarioId: string) => {
     sfx.play('click');
@@ -44,9 +47,14 @@ export function CallsApp({ actions }: { actions: PhoneActions }) {
         {OUTGOING_CALLS.map((s) => {
           const place = s.placeId ? PLACE_BY_ID.get(s.placeId) : undefined;
           const npc = getNpc(s.npcId!);
+          const locked = isScenarioLocked(s, level, save.bestStars);
+          const need = unlockLevelFor(s);
           return (
             <li key={s.id}>
-              <button className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-3 text-left hover:bg-white/10 active:scale-[0.98]" onClick={() => call(s.id)}>
+              <button
+                className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left ${locked ? 'cursor-not-allowed bg-white/[0.03] opacity-60' : 'bg-white/5 hover:bg-white/10 active:scale-[0.98]'}`}
+                onClick={() => (locked ? toast(t(`${rankFor(need).ko}(Lv${need})부터 걸 수 있어요`, `Opens at ${rankFor(need).en} rank (Lv${need})`), 'info') : call(s.id))}
+              >
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-2xl">{place?.icon ?? '📞'}</span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold text-white">{s.title[lang]}</div>
@@ -55,10 +63,10 @@ export function CallsApp({ actions }: { actions: PhoneActions }) {
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <Difficulty level={s.difficulty} />
-                    <Stars value={save.bestStars[s.id] ?? 0} size={11} />
+                    {locked ? <span className="text-[11px] text-white/60">🔒 Lv{need} {rankFor(need)[lang]}</span> : <Stars value={save.bestStars[s.id] ?? 0} size={11} />}
                   </div>
                 </div>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${locked ? 'bg-white/15' : 'bg-emerald-500'}`}>
                   <Phone size={18} />
                 </span>
               </button>

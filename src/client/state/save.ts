@@ -97,6 +97,8 @@ export interface SaveData {
   jobs: JobKind[];
   cars: CarModelId[];
   coupons: Record<string, number>;
+  /** Ranks whose one-time gifts were already handed out. */
+  rankGifts: string[];
   collected: string[];
   messages: PhoneMessage[];
   phrasebook: PhraseCard[];
@@ -151,6 +153,7 @@ export function newSave(p: { name: string; level: Level; look: Look; outfit: str
     jobs: [],
     cars: [],
     coupons: {},
+    rankGifts: [],
     collected: [],
     messages: [],
     phrasebook: [],

@@ -1,12 +1,14 @@
 import { CAR_MODELS } from '../../game/vehicle';
 import { useTr } from '../../i18n';
-import { useGame } from '../../state/game';
+import { bestCoupon, useGame } from '../../state/game';
 import { toast } from '../../state/ui';
 import type { PhoneActions } from './Phone';
 
 export function GarageApp({ actions }: { actions: PhoneActions }) {
   const t = useTr();
   const save = useGame((s) => s.save!);
+  const best = bestCoupon(save.coupons);
+  const coupon = best && Math.round(best.discount * 100);
   return (
     <div className="space-y-4 p-4">
       <section>
@@ -41,8 +43,10 @@ export function GarageApp({ actions }: { actions: PhoneActions }) {
           {t('근무 종료', 'End shift')}
         </button>
       )}
-      {Object.keys(save.coupons).length > 0 && (
-        <p className="rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-200">🎟️ {t('엘든 모터스 20% 할인 쿠폰 보유', 'You have a 20% Elden Motors coupon')}</p>
+      {coupon && (
+        <p className="rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          🎟️ {t(`엘든 모터스 ${coupon}% 할인 쿠폰 보유`, `You have a ${coupon}% Elden Motors coupon`)}
+        </p>
       )}
     </div>
   );
