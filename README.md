@@ -1,5 +1,5 @@
 # EldenSpeak
-# # https://eldenspeakclaude.onrender.com/
+# https://eldenspeakclaude.onrender.com/
 
 오픈 월드 도시를 돌아다니며 AI 캐릭터와 **진짜 영어로 대화하는** 영어회화 게임입니다.
 GTA 2 스타일의 탑다운 도시에서 걷고, 운전하고, 일하고, 연애하며 — 모든 미션을 말로 해결합니다.
