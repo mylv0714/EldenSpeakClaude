@@ -1,4 +1,5 @@
 import type { KeyValueStorage, Platform, SpeakOptions, SpeechErrorCode, SpeechRecognizer, TextToSpeech } from './types';
+import { mergeTranscripts } from './transcript';
 import { pickVoiceIndex } from './voices';
 
 // Minimal typings for the Web Speech API (not in TypeScript's DOM lib).
@@ -77,21 +78,26 @@ function createRecognizer(): SpeechRecognizer {
         rec.interimResults = true;
         rec.continuous = !!h.continuous;
         rec.maxAlternatives = 3;
-        let finalText = '';
         let latest = carried;
         let alternatives: string[] = [];
         let fatal = false;
         rec.onresult = (e) => {
-          let interim = '';
-          for (let i = e.resultIndex; i < e.results.length; i++) {
+          // Rebuild from every result each time: Android Chrome re-sends cumulative chunks, so appending duplicates text.
+          const finals: string[] = [];
+          const interims: string[] = [];
+          let lastFinal: SpeechRecognitionResultLike | null = null;
+          for (let i = 0; i < e.results.length; i++) {
             const r = e.results[i];
             if (r.isFinal) {
-              // Alternatives only make sense for a single final chunk (the usual case for short answers).
-              alternatives = finalText || carried ? [] : Array.from({ length: r.length }, (_, k) => r[k].transcript.trim()).filter(Boolean);
-              finalText += r[0].transcript;
-            } else interim += r[0].transcript;
+              finals.push(r[0].transcript);
+              lastFinal = r;
+            } else interims.push(r[0].transcript);
           }
-          latest = `${carried} ${finalText + interim}`.trim();
+          const finalText = mergeTranscripts(finals);
+          // Alternatives only make sense when one final chunk holds the whole answer (the usual case for short answers).
+          const r = lastFinal;
+          alternatives = !carried && r && r[0].transcript.trim() === finalText ? Array.from({ length: r.length }, (_, k) => r[k].transcript.trim()).filter(Boolean) : [];
+          latest = `${carried} ${mergeTranscripts([finalText, ...interims])}`.trim();
           h.onPartial(latest);
         };
         rec.onerror = (e) => {
